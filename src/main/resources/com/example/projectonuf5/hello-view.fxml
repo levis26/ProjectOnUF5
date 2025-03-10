@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox fx:id="mainVBox" spacing="10" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.projectonuf5.HelloController" stylesheets="@styles.css">
+    <!-- Padding general para la ventana -->
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10"/>
+    </padding>
+
+    <!-- Barra de búsqueda y botón de navegación -->
+    <HBox spacing="10">
+        <TextField fx:id="searchField" promptText="Search files..." onKeyReleased="#handleSearch" style="-fx-font-size: 14px; -fx-padding: 5px;"/>
+        <Button text="Browse" onAction="#handleBrowse" style="-fx-font-size: 14px; -fx-padding: 5px 10px;"/>
+    </HBox>
+
+    <!-- Lista de archivos -->
+    <ListView fx:id="fileListView" prefHeight="300" style="-fx-font-size: 14px;"/>
+
+    <!-- Botones de acciones -->
+    <HBox spacing="10">
+        <Button fx:id="createDirButton" text="Create Directory" onAction="#handleCreateDirectory" style="-fx-font-size: 14px; -fx-padding: 5px 10px;"/>
+        <Button fx:id="createFileButton" text="Create File" onAction="#handleCreateFile" style="-fx-font-size: 14px; -fx-padding: 5px 10px;"/>
+        <Button fx:id="deleteButton" text="Delete" onAction="#handleDelete" style="-fx-font-size: 14px; -fx-padding: 5px 10px;"/>
+        <Button fx:id="renameButton" text="Rename" onAction="#handleRename" style="-fx-font-size: 14px; -fx-padding: 5px 10px;"/>
+    </HBox>
+</VBox>
