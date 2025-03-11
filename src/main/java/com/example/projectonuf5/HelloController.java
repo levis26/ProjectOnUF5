@@ -4,12 +4,9 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
 
 import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -48,60 +45,90 @@ public class HelloController {
     private void handleSearch() {
         String searchText = searchField.getText().toLowerCase();
         if (searchText.isEmpty()) {
-            updateFileList();
+            updateFileList(); // Si no hay texto de búsqueda, mostrar la lista actual
         } else {
-            List<String> filteredFiles = getFilesInDirectory(currentDirectory).stream()
-                    .filter(file -> file.toLowerCase().contains(searchText))
-                    .collect(Collectors.toList());
-            fileListView.getItems().setAll(filteredFiles);
+            List<String> searchResults = searchFiles(currentDirectory, searchText); // Buscar recursivamente
+            fileListView.getItems().setAll(searchResults);
         }
+    }
+
+    private List<String> searchFiles(File directory, String searchText) {
+        List<String> results = new ArrayList<>();
+        if (directory.isDirectory()) {
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.getName().toLowerCase().contains(searchText)) {
+                        results.add(file.getAbsolutePath()); // Añadir la ruta completa
+                    }
+                    if (file.isDirectory()) {
+                        results.addAll(searchFiles(file, searchText)); // Búsqueda recursiva en subdirectorios
+                    }
+                }
+            }
+        }
+        return results;
     }
 
     @FXML
     private void handleCreateDirectory() {
-        TextInputDialog dialog = new TextInputDialog("New Directory");
-        dialog.setTitle("Create Directory");
-        dialog.setHeaderText("Enter the name of the new directory:");
-        dialog.setContentText("Name:");
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Select Location to Create Directory");
+        File selectedDirectory = directoryChooser.showDialog(mainVBox.getScene().getWindow());
 
-        dialog.showAndWait().ifPresent(name -> {
-            File newDir = new File(currentDirectory, name);
-            if (newDir.mkdir()) {
-                updateFileList();
-            } else {
-                showAlert("Error", "Could not create directory.");
-            }
-        });
+        if (selectedDirectory != null) {
+            TextInputDialog dialog = new TextInputDialog("New Directory");
+            dialog.setTitle("Create Directory");
+            dialog.setHeaderText("Enter the name of the new directory:");
+            dialog.setContentText("Name:");
+
+            dialog.showAndWait().ifPresent(name -> {
+                File newDir = new File(selectedDirectory, name);
+                if (newDir.mkdir()) {
+                    currentDirectory = selectedDirectory;
+                    updateFileList(); // Actualizar la lista después de crear el directorio
+                } else {
+                    showAlert("Error", "Could not create directory.");
+                }
+            });
+        }
     }
 
     @FXML
     private void handleCreateFile() {
-        TextInputDialog dialog = new TextInputDialog("New File");
-        dialog.setTitle("Create File");
-        dialog.setHeaderText("Enter the name of the new file:");
-        dialog.setContentText("Name:");
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Select Location to Create File");
+        File selectedDirectory = directoryChooser.showDialog(mainVBox.getScene().getWindow());
 
-        dialog.showAndWait().ifPresent(name -> {
-            File newFile = new File(currentDirectory, name);
-            try {
-                if (newFile.createNewFile()) {
-                    updateFileList();
-                } else {
+        if (selectedDirectory != null) {
+            TextInputDialog dialog = new TextInputDialog("New File");
+            dialog.setTitle("Create File");
+            dialog.setHeaderText("Enter the name of the new file:");
+            dialog.setContentText("Name:");
+
+            dialog.showAndWait().ifPresent(name -> {
+                File newFile = new File(selectedDirectory, name);
+                try {
+                    if (newFile.createNewFile()) {
+                        currentDirectory = selectedDirectory;
+                        updateFileList(); // Actualizar la lista después de crear el archivo
+                    } else {
+                        showAlert("Error", "Could not create file.");
+                    }
+                } catch (Exception e) {
                     showAlert("Error", "Could not create file.");
                 }
-            } catch (Exception e) {
-                showAlert("Error", "Could not create file.");
-            }
-        });
+            });
+        }
     }
 
     @FXML
     private void handleDelete() {
         String selectedFile = fileListView.getSelectionModel().getSelectedItem();
         if (selectedFile != null) {
-            File fileToDelete = new File(currentDirectory, selectedFile);
+            File fileToDelete = new File(selectedFile);
             if (fileToDelete.delete()) {
-                updateFileList();
+                updateFileList(); // Actualizar la lista después de eliminar
             } else {
                 showAlert("Error", "Could not delete file or directory.");
             }
@@ -112,16 +139,16 @@ public class HelloController {
     private void handleRename() {
         String selectedFile = fileListView.getSelectionModel().getSelectedItem();
         if (selectedFile != null) {
-            TextInputDialog dialog = new TextInputDialog(selectedFile);
+            File fileToRename = new File(selectedFile);
+            TextInputDialog dialog = new TextInputDialog(fileToRename.getName());
             dialog.setTitle("Rename");
             dialog.setHeaderText("Enter the new name:");
             dialog.setContentText("Name:");
 
             dialog.showAndWait().ifPresent(newName -> {
-                File fileToRename = new File(currentDirectory, selectedFile);
-                File newFile = new File(currentDirectory, newName);
+                File newFile = new File(fileToRename.getParent(), newName);
                 if (fileToRename.renameTo(newFile)) {
-                    updateFileList();
+                    updateFileList(); // Actualizar la lista después de renombrar
                 } else {
                     showAlert("Error", "Could not rename file or directory.");
                 }
@@ -145,7 +172,9 @@ public class HelloController {
     }
 
     private List<String> getFilesInDirectory(File directory) {
-        return List.of(directory.list());
+        return List.of(directory.listFiles()).stream()
+                .map(File::getAbsolutePath)
+                .collect(Collectors.toList());
     }
 
     private void showAlert(String title, String message) {
