@@ -1,5 +1,6 @@
 package com.example.projectonuf5;
 
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
@@ -34,6 +35,8 @@ public class HelloController {
     private VBox mainVBox;
 
     private File currentDirectory;
+    private Task<List<String>> currentSearchTask;
+    private List<String> cachedSearchResults = new ArrayList<>();
 
     @FXML
     public void initialize() {
@@ -47,14 +50,37 @@ public class HelloController {
         if (searchText.isEmpty()) {
             updateFileList(); // Si no hay texto de búsqueda, mostrar la lista actual
         } else {
-            List<String> searchResults = searchFiles(currentDirectory, searchText); // Buscar recursivamente
-            fileListView.getItems().setAll(searchResults);
+            if (cachedSearchResults.isEmpty()) {
+                // Realizar una búsqueda completa si no hay resultados en caché
+                if (currentSearchTask != null && currentSearchTask.isRunning()) {
+                    currentSearchTask.cancel();
+                }
+
+                currentSearchTask = new Task<>() {
+                    @Override
+                    protected List<String> call() {
+                        return searchFiles(currentDirectory, searchText, 3); // Limitar la profundidad a 3 niveles
+                    }
+                };
+
+                currentSearchTask.setOnSucceeded(event -> {
+                    cachedSearchResults = currentSearchTask.getValue();
+                    filterAndDisplayResults(searchText);
+                });
+
+                Thread searchThread = new Thread(currentSearchTask);
+                searchThread.setDaemon(true);
+                searchThread.start();
+            } else {
+                // Filtrar los resultados en caché
+                filterAndDisplayResults(searchText);
+            }
         }
     }
 
-    private List<String> searchFiles(File directory, String searchText) {
+    private List<String> searchFiles(File directory, String searchText, int maxDepth) {
         List<String> results = new ArrayList<>();
-        if (directory.isDirectory()) {
+        if (directory.isDirectory() && maxDepth >= 0) {
             File[] files = directory.listFiles();
             if (files != null) {
                 for (File file : files) {
@@ -62,12 +88,19 @@ public class HelloController {
                         results.add(file.getAbsolutePath()); // Añadir la ruta completa
                     }
                     if (file.isDirectory()) {
-                        results.addAll(searchFiles(file, searchText)); // Búsqueda recursiva en subdirectorios
+                        results.addAll(searchFiles(file, searchText, maxDepth - 1)); // Búsqueda recursiva con profundidad limitada
                     }
                 }
             }
         }
         return results;
+    }
+
+    private void filterAndDisplayResults(String searchText) {
+        List<String> filteredResults = cachedSearchResults.stream()
+                .filter(file -> file.toLowerCase().contains(searchText))
+                .collect(Collectors.toList());
+        fileListView.getItems().setAll(filteredResults);
     }
 
     @FXML
